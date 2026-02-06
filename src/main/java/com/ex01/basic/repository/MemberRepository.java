@@ -3,7 +3,6 @@ package com.ex01.basic.repository;
 import com.ex01.basic.dto.MemberDto;
 import org.springframework.stereotype.Repository;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -12,10 +11,12 @@ public class MemberRepository {
     private List<MemberDto> DB;
     public MemberRepository(){
         //System.out.println("memberRepository 생성자");
+        /*
         DB = new ArrayList<>();
         DB.add(new MemberDto(1,"aaa","aaaS","USER"));
         DB.add(new MemberDto(2,"bbb","bbbS","USER"));
         DB.add(new MemberDto(3,"ccc","cccS","USER"));
+        */
     }
     //목록 모두 찾기
     public List<MemberDto> findAll(){
