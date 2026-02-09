@@ -3,6 +3,7 @@ package com.ex01.basic.controller;
 import com.ex01.basic.dto.LoginDto;
 import com.ex01.basic.dto.MemberDto;
 import com.ex01.basic.dto.MemberRegDto;
+import com.ex01.basic.service.MemberFileService;
 import com.ex01.basic.service.MemberService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,20 +12,50 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.util.Map;
 
 @Tag(name = "MemberAPI", description = "회원 도메인 API")
 @RestController
+@Slf4j
 @RequestMapping("/members")
 public class MemberController {
+    @Autowired
     private MemberService memberService;
+    @Autowired
+    private MemberFileService memberFileService;
+
     public MemberController(MemberService memberService){
         this.memberService = memberService;
+    }
+    @GetMapping("{fileName}/image")
+    @Operation(
+            summary = "회원 이미지 조회",
+            description = "프로필의 이미지 다운로드"
+    )
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "이미지 조회 성공",
+            content = @Content(
+                    mediaType = "image/*",
+                    schema = @Schema(implementation = Byte.class)
+            )),
+            @ApiResponse(responseCode = "404", description = "이미지 없음")
+    })
+    public ResponseEntity<byte[]> getMemberImage(@PathVariable("fileName") String fileName){
+        byte[] imageByte = null;
+        imageByte = memberFileService.getImage(fileName);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_TYPE, "image/jpg")
+                .body(imageByte);
     }
     /*
     public MemberController(){
@@ -77,15 +108,19 @@ public class MemberController {
             @ApiResponse(responseCode = "200", description = "성공",
                     content = @Content( //요청/응답 바디의 내용을 설명
                             mediaType = "application/json", // 응답형식 지정
-                            schema = @Schema(implementation = MemberDto[].class, example = """
-                                    [
-                                        {
-                                            "id" : 1,
-                                            "username" : "aaa",
-                                            "password" : "111",
-                                            "role" : "USER"
-                                        }
-                                    ]
+                            schema = @Schema(implementation = Map.class, example = """
+                                    {
+                                        "totalPage" : 10,
+                                        "currentPage" : 1,
+                                        "list" : [
+                                            {
+                                                "id" : 1,
+                                                "username" : "aaa",
+                                                "password" : "111",
+                                                "role" : "USER"
+                                            }
+                                        ]
+                                    }
                                     """)
                             /*
                             array = @ArraySchema(//배열 형태의 데이터 구조를 설명
@@ -103,16 +138,16 @@ public class MemberController {
                     )
             )
     })
-    public ResponseEntity<List<MemberDto>> getList(
-            @RequestParam(name="start", defaultValue = "0") int start){
+    public ResponseEntity<Map<String, Object>> getList(
+            @RequestParam(value="start", defaultValue = "0") int start){
         System.out.println("start : " +start);
-        List<MemberDto>list = null;
+        Map<String, Object> map = null;
         //try {
-           list = memberService.getList(start);
+           map = memberService.getList(start);
         //} catch (MemberNotFoundException e) {
          //   return ResponseEntity.status(HttpStatus.NOT_FOUND).body(list);
         //}
-        return ResponseEntity.ok(list);
+        return ResponseEntity.ok(map);
     }
     @GetMapping("/{id}") // /members/{id}
     @Operation(
@@ -144,7 +179,7 @@ public class MemberController {
         //select * from member where id={id}
         return ResponseEntity.ok(memberDto);
     }
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(
             summary = "회원 수정",
             description = "사용자를 수정 합니다"
@@ -163,11 +198,13 @@ public class MemberController {
                     )
             )
     })
-    public ResponseEntity<Void> update(@ParameterObject @ModelAttribute MemberDto memberDto,
+    public ResponseEntity<Void> update(
+            @RequestParam(value="file", required = false) MultipartFile multipartFile,
+            @ParameterObject @ModelAttribute MemberDto memberDto,
                                         @PathVariable("id") int id){
         //System.out.println("연결 확인 : "+id);
         //try {
-            memberService.modify(id, memberDto);
+            memberService.modify(id, memberDto, multipartFile);
         //} catch (MemberNotFoundException e){
         //   return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
        // }
@@ -193,16 +230,19 @@ public class MemberController {
                     )
             )
     })
-    public ResponseEntity<Void> deleteMember(@PathVariable("id") int id){
+    public ResponseEntity<Void> deleteMember(@PathVariable("id") int id,
+                                             @RequestBody String fileName){
         //try {
             memberService.delMember( id );
+            memberFileService.deleteFile(fileName);
         //} catch (MemberNotFoundException e) {
         //    return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
         //}
         return ResponseEntity.status(HttpStatus.NO_CONTENT).build();
     }
 
-    @PostMapping
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+                // swagger에서 file형식으로 보여주기위함,파일이 포함된 요청(multipart/form-data)을 받기 위함
     @Operation(
             summary = "회원 추가",
             description = "사용자를 추가 합니다"
@@ -221,7 +261,10 @@ public class MemberController {
                     )
             )
     })
-    public ResponseEntity<String> register(@ParameterObject @ModelAttribute MemberRegDto memberRegDto){
+    public ResponseEntity<String> register(
+            @RequestParam(value = "file", required = false ) MultipartFile multipartFile, //required = false : 값이 들어오지 않으면 해당하는 값은 null로 처리한다.
+            @ParameterObject @ModelAttribute MemberRegDto memberRegDto){
+        System.out.println("multipartFile : "+ multipartFile);
         /*
         try {
             Thread.sleep(1000);
@@ -231,7 +274,7 @@ public class MemberController {
          */
 
         //try {
-            memberService.insert(memberRegDto);
+            memberService.insert(memberRegDto, multipartFile);
         //} catch (MemberDuplicateException e){
         //    return ResponseEntity.status(HttpStatus.CONFLICT).body("동일 id 존재");
        // }

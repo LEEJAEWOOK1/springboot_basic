@@ -16,8 +16,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 @Service
@@ -26,6 +28,8 @@ public class MemberService {
     private MemberRepository memberRepository;
     @Autowired
     private MemRepository memRepository;
+    @Autowired
+    private MemberFileService memberFileService;
 
     public MemberService(){
         System.out.println("MemberService 생성자");
@@ -35,7 +39,7 @@ public class MemberService {
         //memberRepository2.repositoryTest();
     }
     // 전체 회원 보기
-    public List<MemberDto> getList(int start){
+    public Map<String, Object> getList(int start){
         //List<MemberDto> list = memberRepository.findAll();
         int size = 3;
         Pageable pageable = PageRequest.of(start, size,
@@ -44,18 +48,23 @@ public class MemberService {
 
         if(page.isEmpty())
             throw new MemberNotFoundException("데이터 없다");
+        Map<String, Object> map = new HashMap<>();
+        map.put("list", page.stream()
+                .map(memberEntity -> new MemberDto(memberEntity))
+                .toList());
+        map.put("totalPage", page.getTotalPages());
+        map.put("currentPage", page.getNumber() + 1);
+        return map;
 
-        return page.getContent().stream()
-                .map(MemberDto::new)
-                .toList();
         /*
-        List<MemberDto> list = memRepository.findAll().stream()
+        List<MemberDto> list = memRepository.findAll(pageable).stream()
                 .map(memberEntity -> new MemberDto(memberEntity))
                 .toList();
         if(list.isEmpty())
             throw new MemberNotFoundException("데이터 없다");
         return list;
          */
+
 
     }
     //특정 회원 보기
@@ -73,9 +82,18 @@ public class MemberService {
          */
     }
     //회원 수정
-    public void modify(int id, MemberDto memberDto){
+    public void modify(int id, MemberDto memberDto, MultipartFile multipartFile){
         MemberEntity memberEntity = memRepository.findById(id)
                 .orElseThrow(()->new MemberNotFoundException("수정 사용자 없음"));
+        //파일 선택 여부 확인
+        String changeFileName = memberFileService.saveFile(multipartFile);
+        //기존에 파일이 있다면
+        if(!changeFileName.equals("nan")){
+            //기존에 있는 파일 삭제
+            memberFileService.deleteFile(memberDto.getFileName());
+            //새로운 파일 저장
+            memberDto.setFileName(changeFileName);
+        }
         //BeanUtils.copyProperties(memberDto, memberEntity, "username");
         BeanUtils.copyProperties(memberDto, memberEntity);
         memRepository.save(memberEntity);
@@ -101,11 +119,14 @@ public class MemberService {
         memRepository.deleteById(id);
     }
     //회원 추가
-    public void insert(MemberRegDto memberRegDto){
+    public void insert(MemberRegDto memberRegDto, MultipartFile multipartFile){
+        //System.out.println("파일 이름 : "+ multipartFile.getOriginalFilename());
         //boolean bool = memberRepository.existById(memberDto.getId());
         boolean bool = memRepository.existsByUsername(memberRegDto.getUsername());
         if(bool)
             throw new MemberDuplicateException("중복 id");
+        String fileName = memberFileService.saveFile(multipartFile); //파일 저장
+        memberRegDto.setFileName(fileName);
         //memberRepository.save(memberDto);
         MemberEntity memberEntity = new MemberEntity();
         BeanUtils.copyProperties(memberRegDto, memberEntity);

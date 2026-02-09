@@ -8,14 +8,16 @@ public class MemberDto {
     private String username;
     private String password;
     private String role;
+    private String fileName;
 
     public MemberDto() {}
 
-    public MemberDto(int id, String username, String password, String role){
+    public MemberDto(int id, String username, String password, String role, String fileName){
         this.id =id;
         this.username=username;
         this.password=password;
         this.role = role;
+        this.fileName = fileName;
     }
     public MemberDto(MemberEntity memberEntity){
         BeanUtils.copyProperties(memberEntity, this);
@@ -51,5 +53,13 @@ public class MemberDto {
 
     public void setId(int id) {
         this.id = id;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
     }
 }
