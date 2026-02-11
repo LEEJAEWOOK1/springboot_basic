@@ -1,5 +1,6 @@
 package com.ex01.basic.controller;
 
+import com.ex01.basic.config.JwtUtil;
 import com.ex01.basic.dto.LoginDto;
 import com.ex01.basic.dto.MemberDto;
 import com.ex01.basic.dto.MemberRegDto;
@@ -19,9 +20,14 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.util.Collections;
 import java.util.Map;
 
 @Tag(name = "MemberAPI", description = "회원 도메인 API")
@@ -33,6 +39,10 @@ public class MemberController {
     private MemberService memberService;
     @Autowired
     private MemberFileService memberFileService;
+    @Autowired
+    private JwtUtil jwtUtil;
+    @Autowired
+    private AuthenticationManager authenticationManager;
 
     public MemberController(MemberService memberService){
         this.memberService = memberService;
@@ -83,14 +93,30 @@ public class MemberController {
                     )
             )
     })
-    public ResponseEntity<Integer> login(@RequestBody LoginDto loginDto){
+    public ResponseEntity<Map<String, String>> login(@ParameterObject @ModelAttribute LoginDto loginDto){
         System.out.println("loginDto => " + loginDto);
+        UsernamePasswordAuthenticationToken token =
+                new UsernamePasswordAuthenticationToken(
+                        loginDto.getUsername(),
+                        loginDto.getPassword()
+                );
+        Authentication authentication = null;
+        authentication = authenticationManager.authenticate(token);
+        System.out.println("인증된 사용자 정보 : "+authentication.getPrincipal());
+        UserDetails userDetails = (UserDetails)authentication.getPrincipal();
+        String resultToken = jwtUtil.generateToken(userDetails.getUsername());
+        System.out.println("name : "+authentication.getName());
+        System.out.println("name : "+userDetails.getUsername());
+        System.out.println("auth : "+userDetails.getAuthorities());
+        /*
         //try {
             memberService.login(loginDto);
         //} catch (InvalidLoginException e){
            // return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(1);
         //}
         return ResponseEntity.ok(0);
+         */
+        return ResponseEntity.ok(Collections.singletonMap("token", resultToken));
     }
     @GetMapping("test")
     public ResponseEntity<String> getTest(){
