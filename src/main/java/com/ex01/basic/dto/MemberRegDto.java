@@ -9,6 +9,6 @@ import lombok.*;
 public class MemberRegDto {
     private String username;
     private String password;
-    private String role;
+    //private String role;
     private String fileName;
 }

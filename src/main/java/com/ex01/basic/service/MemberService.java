@@ -5,6 +5,7 @@ import com.ex01.basic.dto.MemberDto;
 import com.ex01.basic.dto.MemberRegDto;
 import com.ex01.basic.entity.MemberEntity;
 import com.ex01.basic.exception.InvalidLoginException;
+import com.ex01.basic.exception.MemberAccessDeniedException;
 import com.ex01.basic.exception.MemberDuplicateException;
 import com.ex01.basic.exception.MemberNotFoundException;
 import com.ex01.basic.repository.MemRepository;
@@ -85,9 +86,13 @@ public class MemberService {
          */
     }
     //회원 수정
-    public void modify(int id, MemberDto memberDto, MultipartFile multipartFile){
+    public void modify(int id, MemberDto memberDto, MultipartFile multipartFile, String username){
         MemberEntity memberEntity = memRepository.findById(id)
                 .orElseThrow(()->new MemberNotFoundException("수정 사용자 없음"));
+        if(!memberEntity.getUsername().equals(username))
+            throw new MemberAccessDeniedException("수정 권한이 없습니다");
+        if(!memberDto.getPassword().equals(memberEntity.getPassword()))
+            memberDto.setPassword(passwordEncoder.encode(memberDto.getPassword()));
         //파일 선택 여부 확인
         String changeFileName = memberFileService.saveFile(multipartFile);
         //기존에 파일이 있다면
@@ -110,16 +115,21 @@ public class MemberService {
          */
     }
     //회원 삭제
-    public void delMember(int id ){
+    public void delMember(int id, String username ){
         /*
         boolean bool =  memberRepository.existById(id);
         if( !bool )
            throw new MemberNotFoundException("삭제 사용자 없음");
          */
         //boolean bool =  memberRepository.deleteById( id );
-        if(!memRepository.existsById(id))
-            throw new MemberNotFoundException("삭제 사용자 없음");
+        //if(!memRepository.existsById(id))
+            //throw new MemberNotFoundException("삭제 사용자 없음");
+        MemberEntity memberEntity = memRepository.findById(id)
+                .orElseThrow(()->new MemberNotFoundException("삭제 사용자 없음"));
+        if(!memberEntity.getUsername().equals(username))
+            throw new MemberAccessDeniedException("삭제 권한이 없습니다");
         memRepository.deleteById(id);
+
     }
     //회원 추가
     public void insert(MemberRegDto memberRegDto, MultipartFile multipartFile){
@@ -128,8 +138,8 @@ public class MemberService {
         boolean bool = memRepository.existsByUsername(memberRegDto.getUsername());
         if(bool)
             throw new MemberDuplicateException("중복 id");
-        String newPwd = passwordEncoder.encode(memberRegDto.getPassword());
-        memberRegDto.setPassword(newPwd);
+        memberRegDto.setPassword(passwordEncoder.encode(memberRegDto.getPassword()));
+        //memberRegDto.setPassword(newPwd);
         String fileName = memberFileService.saveFile(multipartFile); //파일 저장
         memberRegDto.setFileName(fileName);
         //memberRepository.save(memberDto);

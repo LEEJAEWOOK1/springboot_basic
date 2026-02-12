@@ -29,4 +29,11 @@ public class MemberGlobalExceptionHandler {
         problemDetail.setDetail(invalidLoginException.getMessage());
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(problemDetail);
     }
+    @ExceptionHandler(MemberAccessDeniedException.class)
+    public ResponseEntity<ProblemDetail> accessDeniedHandler(MemberAccessDeniedException memberAccessDeniedException){
+        ProblemDetail problemDetail = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+        problemDetail.setTitle("접근 권한 없음");
+        problemDetail.setDetail(memberAccessDeniedException.getMessage());
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(problemDetail);
+    }
 }

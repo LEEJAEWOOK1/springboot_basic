@@ -12,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.ExampleObject;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.extern.slf4j.Slf4j;
 import org.springdoc.core.annotations.ParameterObject;
@@ -21,13 +22,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.Collections;
 import java.util.Map;
 
 @Tag(name = "MemberAPI", description = "회원 도메인 API")
@@ -72,7 +70,7 @@ public class MemberController {
         System.out.println("member ctrl 생성자");
     }
      */
-    @PostMapping("/login") //members/login
+    //@PostMapping("/login") //members/login
     @Operation(
             summary = "로그인",
             description = "username과 password 인증"
@@ -93,30 +91,16 @@ public class MemberController {
                     )
             )
     })
-    public ResponseEntity<Map<String, String>> login(@ParameterObject @ModelAttribute LoginDto loginDto){
+    public ResponseEntity<Integer> login(@ParameterObject @ModelAttribute LoginDto loginDto){
         System.out.println("loginDto => " + loginDto);
-        UsernamePasswordAuthenticationToken token =
-                new UsernamePasswordAuthenticationToken(
-                        loginDto.getUsername(),
-                        loginDto.getPassword()
-                );
-        Authentication authentication = null;
-        authentication = authenticationManager.authenticate(token);
-        System.out.println("인증된 사용자 정보 : "+authentication.getPrincipal());
-        UserDetails userDetails = (UserDetails)authentication.getPrincipal();
-        String resultToken = jwtUtil.generateToken(userDetails.getUsername());
-        System.out.println("name : "+authentication.getName());
-        System.out.println("name : "+userDetails.getUsername());
-        System.out.println("auth : "+userDetails.getAuthorities());
-        /*
+
         //try {
             memberService.login(loginDto);
         //} catch (InvalidLoginException e){
            // return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(1);
         //}
         return ResponseEntity.ok(0);
-         */
-        return ResponseEntity.ok(Collections.singletonMap("token", resultToken));
+
     }
     @GetMapping("test")
     public ResponseEntity<String> getTest(){
@@ -176,6 +160,7 @@ public class MemberController {
         return ResponseEntity.ok(map);
     }
     @GetMapping("/{id}") // /members/{id}
+    @SecurityRequirement(name="JWT")
     @Operation(
             summary = "특정 회원 조회",
             description = "사용자의 id를 파라미터로 전달"
@@ -206,6 +191,7 @@ public class MemberController {
         return ResponseEntity.ok(memberDto);
     }
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @SecurityRequirement(name="JWT")
     @Operation(
             summary = "회원 수정",
             description = "사용자를 수정 합니다"
@@ -227,10 +213,11 @@ public class MemberController {
     public ResponseEntity<Void> update(
             @RequestParam(value="file", required = false) MultipartFile multipartFile,
             @ParameterObject @ModelAttribute MemberDto memberDto,
-                                        @PathVariable("id") int id){
+                                        @PathVariable("id") int id,
+                                        Authentication authentication){
         //System.out.println("연결 확인 : "+id);
         //try {
-            memberService.modify(id, memberDto, multipartFile);
+            memberService.modify(id, memberDto, multipartFile, authentication.getName());
         //} catch (MemberNotFoundException e){
         //   return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
        // }
@@ -238,6 +225,7 @@ public class MemberController {
         return ResponseEntity.ok().build();
     }
     @DeleteMapping("{id}")
+    @SecurityRequirement(name="JWT")
     @Operation(
             summary = "회원 삭제",
             description = "사용자를 삭제 합니다"
@@ -257,9 +245,9 @@ public class MemberController {
             )
     })
     public ResponseEntity<Void> deleteMember(@PathVariable("id") int id,
-                                             @RequestBody String fileName){
+                                             @RequestBody String fileName, Authentication authentication){
         //try {
-            memberService.delMember( id );
+            memberService.delMember( id, authentication.getName() );
             memberFileService.deleteFile(fileName);
         //} catch (MemberNotFoundException e) {
         //    return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
