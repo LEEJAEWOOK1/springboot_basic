@@ -27,6 +27,7 @@ public class PostController {
     public ResponseEntity<List<PostAllDto>> getPost(){
         return ResponseEntity.ok(postService.getPost());
     }
+    //포스트 특정 목록 조회
     @GetMapping("{id}")
     public ResponseEntity<PostDetailDto> getPostOne(
             @PathVariable("id") Long id,

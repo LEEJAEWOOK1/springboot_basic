@@ -36,6 +36,7 @@ public class PostService {
                 .map(PostAllDto::new)
                 .toList();
     }
+    //특정 post 조회
     public PostDetailDto getPostOne(Long id, Long number){
         PostDetailDto postDetailDto = postRepository.findById(id)
                 .map(PostDetailDto::new)
